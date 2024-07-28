@@ -1,3 +1,4 @@
+#[derive(Copy, Clone)]
 pub enum Item {
     First,
     Second,
@@ -14,14 +15,60 @@ impl Item {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Tuple(u32, f32, f64);
 
-impl Tuple {
-    pub fn default_values() -> Self {
+#[derive(Debug, PartialEq)]
+pub struct Array([f64; 3]);
+
+trait SomeTrait: Sized {
+    fn sum(&self) -> f64 {
+        let mut sum = 0_f64;
+        let items = [Item::First, Item::Second, Item::Third];
+        for item in items {
+            sum += self.get_item(item) as f64
+        }
+        sum
+    }
+
+    fn is_default(&self) -> bool {
+        let items = [Item::First, Item::Second, Item::Third];
+        let default = Self::default_values();
+        for item in items {
+            if self.get_item(item) != default.get_item(item) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn default_values() -> Self;
+
+    fn get_item(&self, item: Item) -> f64;
+
+    fn set_item(&mut self, item: Item, value: f64);
+}
+
+impl SomeTrait for Array {
+    fn default_values() -> Self {
+        Self([0.0; 3])
+    }
+
+    fn get_item(&self, item: Item) -> f64 {
+        self.0[item.index()]
+    }
+
+    fn set_item(&mut self, item: Item, value: f64) {
+        self.0[item.index()] = value
+    }
+}
+
+impl SomeTrait for Tuple {
+    fn default_values() -> Self {
         Self(0, 0.0, 0.0)
     }
 
-    pub fn get_item(&self, item: Item) -> f64 {
+    fn get_item(&self, item: Item) -> f64 {
         match item {
             Item::First => self.0 as _,
             Item::Second => self.1 as _,
@@ -29,52 +76,69 @@ impl Tuple {
         }
     }
 
-    pub fn set_item(&mut self, item: Item, value: f64) {
+    fn set_item(&mut self, item: Item, value: f64) {
         match item {
             Item::First => self.0 = value as _,
             Item::Second => self.1 = value as _,
             Item::Third => self.2 = value,
         };
     }
-
-    pub fn is_default(&self) -> bool {
-        self.0 == 0 && self.1 == 0.0 && self.2 == 0.0
-    }
-
-    pub fn sum(&self) -> f64 {
-        self.0 as f64 + self.1 as f64 + self.2
-    }
 }
 
-pub struct Array([f64; 3]);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Array {
-    pub fn default_values() -> Self {
-        Self([0.0; 3])
+    fn test_sum_abstract<T: SomeTrait>() {
+        let mut rf = T::default_values();
+        assert_eq!(rf.sum(), 0.);
+        rf.set_item(Item::First, 1.);
+        rf.set_item(Item::Second, 2.);
+        rf.set_item(Item::Third, 3.);
+        assert_eq!(rf.sum(), 6.);
     }
 
-    pub fn get_item(&self, item: Item) -> f64 {
-        self.0[item.index()]
+    #[test]
+    fn test_sums() {
+        test_sum_abstract::<Array>();
+        test_sum_abstract::<Tuple>();
     }
 
-    pub fn set_item(&mut self, item: Item, value: f64) {
-        self.0[item.index()] = value
+    fn test_is_default_abstract<T: SomeTrait>() {
+        let mut rf = T::default_values();
+        assert_eq!(rf.is_default(), true);
+        rf.set_item(Item::Second, 100.);
+        assert_eq!(rf.is_default(), false);
     }
 
-    pub fn is_default(&self) -> bool {
-        for value in &self.0 {
-            if *value != 0.0 {
-                return false;
-            }
-        }
-        true
+    #[test]
+    fn test_is_defaults() {
+        test_is_default_abstract::<Array>();
+        test_is_default_abstract::<Tuple>();
     }
 
-    pub fn sum(&self) -> f64 {
-        let mut sum = 0.0;
-        for value in &self.0 {
-            sum += *value;
-        }
-        sum
+    #[test]
+    fn test_default_values() {
+        assert_eq!(Array::default_values(), Array([0., 0., 0.]));
+        assert_eq!(Tuple::default_values(), Tuple(0, 0.0, 0.0))
+    }
+
+    fn test_set_get_item_abstract<T: SomeTrait>() {
+        let mut rf = T::default_values();
+        rf.set_item(Item::First, 64.);
+        assert_eq!(rf.get_item(Item::First), 64.);
+
+        rf.set_item(Item::Second, 12.);
+        assert_eq!(rf.get_item(Item::Second), 12.);
+
+        rf.set_item(Item::Third, 5.);
+        assert_eq!(rf.get_item(Item::Third), 5.)
+    }
+
+    // tests for methods get_item / set_item merged to one due to theirs nature
+    #[test]
+    fn test_set_get_item() {
+        test_set_get_item_abstract::<Array>();
+        test_set_get_item_abstract::<Tuple>();
     }
 }
